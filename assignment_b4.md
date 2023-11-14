@@ -1,0 +1,212 @@
+assignment B4
+================
+Xin Wang
+2023-11-14
+
+# Exercise 1 (37.5 points)
+
+Take a Jane Austen book contained in the *janeaustenr* package, or
+another book from some other source, such as one of the many freely
+available books from Project Gutenberg (be sure to indicate where you
+got the book from). Make a plot of the most common words in the book,
+removing “stop words” of your choosing (words like “the”, “a”, etc.) or
+stopwords from a pre-defined source, like the stopwords package or
+*tidytext::stop_words*.
+
+If you use any resources for helping you remove stopwords, or some other
+resource besides the janeaustenr R package for accessing your book,
+please indicate the source. We aren’t requiring any formal citation
+styles, just make sure you name the source and link to it.
+
+``` r
+# Install and load required packages
+if (!requireNamespace("janeaustenr", quietly = TRUE)) {
+  install.packages("janeaustenr")
+}
+
+if (!requireNamespace("tidytext", quietly = TRUE)) {
+  install.packages("tidytext")
+}
+
+if (!requireNamespace("ggplot2", quietly = TRUE)) {
+  install.packages("ggplot2")
+}
+
+if (!requireNamespace("dplyr", quietly = TRUE)) {
+  install.packages("dplyr")
+}
+
+# Load required libraries
+library(janeaustenr)
+library(tidytext)
+library(ggplot2)
+library(dplyr)
+```
+
+    ## 
+    ## Attaching package: 'dplyr'
+
+    ## The following objects are masked from 'package:stats':
+    ## 
+    ##     filter, lag
+
+    ## The following objects are masked from 'package:base':
+    ## 
+    ##     intersect, setdiff, setequal, union
+
+Steps:
+
+``` r
+# Load the Jane Austen book from janeaustenr package
+emma_text <- janeaustenr::austen_books() %>%
+  filter(book == "Emma") %>%
+  select(text)
+
+# Tokenize the text
+emma_words <- emma_text %>%
+  unnest_tokens(word, text)
+
+# Get stop words from tidytext package
+stop_words <- tidytext::stop_words
+
+# Remove stop words
+emma_words <- anti_join(emma_words, stop_words, by = "word")
+
+# Get the most common words
+common_words <- emma_words %>%
+  group_by(word) %>%
+  summarize(n = n()) %>%
+  top_n(10, n)
+
+# Plot the most common words
+ggplot(common_words, aes(x = reorder(word, -n), y = n)) +
+  geom_col() +
+  labs(title = "Top 10 Most Common Words in Jane Austen's Emma (excluding stop words)",
+       x = "Word",
+       y = "Frequency")
+```
+
+![](assignment_b4_files/figure-gfm/unnamed-chunk-2-1.png)<!-- -->
+
+# Exercise 2 (37.5 points)
+
+Make a function that converts words to your own version of Pig Latin.
+
+The specific input and output that you decide upon is up to you. Don’t
+forget to implement good function-making hygiene: we’ll be looking for
+(unrendered) roxygen2-style documentation (being sure to describe your
+Pig Latin conversion), examples of applying the function, 3
+non-redundant tests, appropriate use of arguments, and appropriate
+amount of checking for proper input.
+
+Your Pig Latin should incorporate two components:
+
+## Rearrangement component
+
+The default Pig Latin rearrangement rule, as per Wikipedia, moves
+beginning letters to the end:
+
+1.  For words that begin with consonant sounds, all letters before the
+    initial vowel are placed at the end of the word sequence.
+2.  When words begin with consonant clusters (multiple consonants that
+    form one sound), the whole sound is added to the end.
+3.  For words beginning with vowel sounds, one removes the initial
+    vowel(s) along with the first consonant or consonant cluster.
+
+Modify this somehow. Maybe you move letters from the end to the
+beginning, or you change the rules altogether, keeping a similar level
+of complexity.
+
+## Addition component
+
+The default Pig Latin addition rule is to add “ay” to the end of the
+word, after rearranging the letters of the word. You should choose some
+other addition rule.
+
+``` r
+#' Convert words to a custom Pig Latin
+#'
+#' This function converts words to a custom Pig Latin by rearranging letters and adding a custom ending.
+#'
+#' @param words A character vector of words to be converted to Pig Latin.
+#'
+#' @return A character vector containing the words converted to Pig Latin.
+#'
+#' @examples
+#' pig_latin(c("what", "your", "name"))
+#' # Output: [1] "atwhoi" "ouryoi" "amenoi"
+#' 
+#' pig_latin(c("university", "british", "columbia"))
+#' # Output: [1] "iversityunoi" "itishbroi"    "olumbiacoi"  
+#'
+#' @export
+pig_latin <- function(words) {
+  if (!is.character(words)) {
+    stop("Input must be a character vector.")
+  }
+
+  pig_latin_word <- function(word) {
+    # Rearrangement component
+    vowels <- c("a", "e", "i", "o", "u")
+    if (substr(word, 1, 1) %in% vowels) {
+      # For words beginning with vowel sounds
+      pig_word <- paste0(substr(word, 2, nchar(word)), substr(word, 1, 1))
+    }  else {
+      pig_word <- word
+    }
+      
+    # For words that begin with consonant sounds or consonant cluster
+    pig_word <- gsub("^([^aeiou]+)([aeiou].*)", "\\2\\1", pig_word, ignore.case = TRUE)
+
+    # Addition component 'oi'to the end of the word, after rearranging the letters of the word.
+    pig_word <- paste0(pig_word, "oi")
+
+    return(pig_word)
+  }
+  return(as.character(sapply(words, pig_latin_word)))
+}
+```
+
+``` r
+pig_latin(c("what", "your", "name"))
+```
+
+    ## [1] "atwhoi" "ouryoi" "amenoi"
+
+``` r
+pig_latin(c("university", "british", "columbia"))
+```
+
+    ## [1] "iversityunoi" "itishbroi"    "olumbiacoi"
+
+The test results
+
+``` r
+if (!requireNamespace("testthat", quietly = TRUE)) {
+  install.packages("testthat")
+}
+
+library(testthat)
+```
+
+    ## 
+    ## Attaching package: 'testthat'
+
+    ## The following object is masked from 'package:dplyr':
+    ## 
+    ##     matches
+
+``` r
+test_that("Pig Latin conversion works correctly", {
+  # Test 1: Basic test
+  expect_equal(pig_latin(c("hello", "world", "apple")), c("ellohoi", "orldwoi", "eapploi"))
+
+  # Test 2: Test with words starting with consonant clusters
+  expect_equal(pig_latin(c("glove", "queen", "school")), c("ovegloi", "ueenqoi", "oolschoi"))
+
+  # Test 3: Test with words starting with vowels
+  expect_equal(pig_latin(c("elephant", "igloo", "umbrella")), c("ephanteloi", "ooigloi", "ellaumbroi"))
+})
+```
+
+    ## Test passed 🌈
